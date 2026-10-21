@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Канбан-дошка</title>
+<title>Канбан-дошка — планування завдань</title>
+<meta name="description" content="Проста канбан-дошка для планування завдань: колонки «Зробити», «У роботі», «Готово», пріоритети й кольорові мітки. Дані зберігаються лише у вашому браузері.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- Попередній перегляд посилання в месенджерах і соцмережах (без картинки) -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="uk_UA">
+<meta property="og:title" content="Канбан-дошка — планування завдань">
+<meta property="og:description" content="Проста канбан-дошка: колонки «Зробити», «У роботі», «Готово», пріоритети й кольорові мітки. Дані зберігаються лише у вашому браузері.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Канбан-дошка — планування завдань">
+<meta name="twitter:description" content="Проста канбан-дошка: колонки «Зробити», «У роботі», «Готово», пріоритети й кольорові мітки. Дані зберігаються лише у вашому браузері.">
 <script>
   // Застосувати збережену тему до відмальовування, щоб сторінка не блимала
   try {
@@ -125,6 +135,18 @@
 
   form.add { margin-bottom: 24px; }
   .add-row { display: flex; gap: 8px; }
+  form.add select {
+    flex-shrink: 0;
+    padding: 0 12px;
+    font: inherit; color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; outline: none;
+  }
+  form.add select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
   form.add input {
     flex: 1; min-width: 0;
     padding: 12px 14px;
@@ -182,7 +204,20 @@
   @keyframes pop { from { opacity: 0; transform: translateY(4px); } }
   .card-text { margin: 0 0 4px; overflow-wrap: anywhere; white-space: pre-wrap; }
   .column[data-status="done"] .card-text { color: var(--muted); text-decoration: line-through; }
-  .card-date { display: block; margin-bottom: 10px; font-size: .75rem; color: var(--muted); }
+  .card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .card-date { font-size: .75rem; color: var(--muted); }
+
+  /* Мітка пріоритету: колір тексту підлаштовується під тему через змішування з --text */
+  .priority {
+    font-size: .72rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px;
+    color: color-mix(in srgb, var(--prio) 70%, var(--text));
+    background: color-mix(in srgb, var(--prio) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--prio) 35%, transparent);
+  }
+  .priority[data-priority="low"]    { --prio: #5f9e7a; }
+  .priority[data-priority="medium"] { --prio: #d9922b; }
+  .priority[data-priority="high"]   { --prio: #e04848; }
   .card-actions { display: flex; gap: 6px; }
   .card-actions button {
     font: inherit; font-size: .82rem;
@@ -222,6 +257,26 @@
     text-align: center; color: var(--muted); font-size: .9rem;
     padding: 20px 8px; border: 1px dashed var(--border); border-radius: 10px;
   }
+
+  /* Підказка для порожньої дошки */
+  .board-empty {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    margin-bottom: 16px; padding: 14px 16px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px dashed var(--border); border-radius: 12px;
+  }
+  .board-empty[hidden] { display: none; }
+  .board-empty p { margin: 0; font-weight: 500; }
+  .board-empty button {
+    padding: 8px 14px;
+    font: inherit; font-size: .9rem; color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent); border-radius: 8px;
+    cursor: pointer; transition: background .15s;
+  }
+  .board-empty button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
@@ -269,10 +324,21 @@
     <div class="add-row">
       <label class="visually-hidden" for="new-card">Текст нової картки</label>
       <input id="new-card" type="text" maxlength="200" placeholder="Нове завдання…" aria-describedby="char-count">
+      <label class="visually-hidden" for="new-priority">Пріоритет</label>
+      <select id="new-priority" title="Пріоритет">
+        <option value="low">Низький</option>
+        <option value="medium" selected>Середній</option>
+        <option value="high">Високий</option>
+      </select>
       <button class="btn-primary" id="add-button" type="submit" disabled>Додати</button>
     </div>
     <p class="add-hint" id="char-count">0 / 200</p>
   </form>
+
+  <div class="board-empty" id="board-empty" hidden>
+    <p>Додайте першу картку</p>
+    <button type="button" id="add-examples">Додати приклади</button>
+  </div>
 
   <main class="board" id="board"></main>
 
@@ -303,10 +369,25 @@
     { id: 'blue',   title: 'Синій' },
     { id: 'red',    title: 'Червоний' },
   ];
+  const PRIORITIES = [
+    { id: 'low',    title: 'Низький' },
+    { id: 'medium', title: 'Середній' },
+    { id: 'high',   title: 'Високий' },
+  ];
+  const DEFAULT_PRIORITY = 'medium';
+  const EXAMPLES = [
+    { text: 'Скласти план на тиждень',          status: 'todo',  priority: 'high',   color: null },
+    { text: 'Купити продукти',                  status: 'todo',  priority: 'low',    color: 'yellow' },
+    { text: 'Підготувати презентацію',          status: 'doing', priority: 'high',   color: 'red' },
+    { text: 'Прочитати розділ книги',           status: 'doing', priority: 'medium', color: 'blue' },
+    { text: 'Налаштувати канбан-дошку',         status: 'done',  priority: 'medium', color: null },
+  ];
 
   const board = document.getElementById('board');
+  const boardEmpty = document.getElementById('board-empty');
   const form = document.getElementById('add-form');
   const input = document.getElementById('new-card');
+  const prioritySelect = document.getElementById('new-priority');
   const addButton = document.getElementById('add-button');
   const charCount = document.getElementById('char-count');
   const storageWarning = document.getElementById('storage-warning');
@@ -337,7 +418,8 @@
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (!Array.isArray(data)) return [];
-      // Лишаємо тільки коректні картки; старим карткам без дати ставимо поточну
+      // Лишаємо тільки коректні картки; старим карткам без дати ставимо поточну,
+      // без пріоритету — «Середній»
       return data
         .filter(c => c && typeof c.text === 'string' && COLUMNS.some(col => col.id === c.status))
         .map(c => ({
@@ -346,6 +428,7 @@
           status: c.status,
           createdAt: c.createdAt || new Date().toISOString(),
           color: COLORS.some(col => col.id === c.color) ? c.color : null,
+          priority: PRIORITIES.some(p => p.id === c.priority) ? c.priority : DEFAULT_PRIORITY,
         }));
     } catch {
       return [];
@@ -371,11 +454,21 @@
   let cards = load();
   // Масив зберігає порядок: картки колонки показуються в порядку появи в масиві
 
-  function addCard(text) {
-    cards.push({ id: newId(), text, status: 'todo', createdAt: new Date().toISOString(), color: null });
+  function addCard(text, priority) {
+    if (!PRIORITIES.some(p => p.id === priority)) priority = DEFAULT_PRIORITY;
+    cards.push({ id: newId(), text, status: 'todo', createdAt: new Date().toISOString(), color: null, priority });
     save();
     render();
   }
+
+  function addExamples() {
+    const createdAt = new Date().toISOString();
+    EXAMPLES.forEach(example => cards.push({ id: newId(), createdAt, ...example }));
+    save();
+    render();
+  }
+
+  document.getElementById('add-examples').addEventListener('click', addExamples);
 
   function setColor(id, color) {
     const card = cards.find(c => c.id === id);
@@ -460,6 +553,7 @@
 
   function render() {
     board.replaceChildren();
+    boardEmpty.hidden = cards.length > 0;
 
     COLUMNS.forEach((col, index) => {
       const items = cards.filter(c => c.status === col.id);
@@ -506,6 +600,17 @@
           time.dateTime = card.createdAt;
           time.textContent = 'Створено ' + formatDate(card.createdAt);
 
+          const priority = PRIORITIES.find(p => p.id === card.priority);
+          const badge = document.createElement('span');
+          badge.className = 'priority';
+          badge.dataset.priority = priority.id;
+          badge.textContent = priority.title;
+          badge.title = 'Пріоритет: ' + priority.title;
+
+          const meta = document.createElement('div');
+          meta.className = 'card-meta';
+          meta.append(badge, time);
+
           const actions = document.createElement('div');
           actions.className = 'card-actions';
           actions.append(
@@ -537,7 +642,7 @@
             colors.append(swatch);
           });
 
-          li.append(p, time, colors, actions);
+          li.append(p, meta, colors, actions);
           list.append(li);
         });
         section.append(list);
@@ -563,7 +668,7 @@
       input.focus();
       return;
     }
-    addCard(text);
+    addCard(text, prioritySelect.value);
     input.value = '';
     updateAddState();
     input.focus();
