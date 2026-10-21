@@ -28,3 +28,4 @@ open index.html
 ## Фото
 
 Фон: Прая-ду-Норте, Назаре — [Luís Ascenso](https://commons.wikimedia.org/wiki/File:Praia_Do_Norte_Nazar%C3%A9_High_Waves_(205617995).jpeg), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), Wikimedia Commons.
+
